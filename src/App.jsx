@@ -1355,57 +1355,68 @@ export default function App(){
             </div>
 
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
-              <FL label={form.date ? `日期（${["日","一","二","三","四","五","六"][(d=>new Date(+d[0],+d[1]-1,+d[2]).getDay())(form.date.split("-"))]}）` : "日期"}>
-                <div style={{display:"flex",gap:6}}>
-                  <select style={{...S.inp,flex:"0 0 80px"}}
-                    value={form.date ? form.date.slice(0,4) : new Date().getFullYear()}
-                    onChange={e=>{
-                      const y=e.target.value;
-                      const mo=(form.date||"").slice(5,7)||String(new Date().getMonth()+1).padStart(2,"0");
-                      const dy=(form.date||"").slice(8,10)||"01";
-                      const maxD=new Date(+y,+mo,0).getDate();
-                      const safeD=Math.min(+dy,maxD);
-                      setForm(f=>({...f,date:`${y}-${mo}-${String(safeD).padStart(2,"0")}`}));
-                    }}>
-                    {[2024,2025,2026,2027].map(y=><option key={y} value={y}>{y}年</option>)}
-                  </select>
-                  <select style={{...S.inp,flex:"0 0 68px"}}
-                    value={form.date ? form.date.slice(5,7) : String(new Date().getMonth()+1).padStart(2,"0")}
-                    onChange={e=>{
-                      const y=(form.date||"").slice(0,4)||String(new Date().getFullYear());
-                      const mo=e.target.value;
-                      const dy=(form.date||"").slice(8,10)||"01";
-                      const maxD=new Date(+y,+mo,0).getDate();
-                      const safeD=Math.min(+dy,maxD);
-                      setForm(f=>({...f,date:`${y}-${mo}-${String(safeD).padStart(2,"0")}`}));
-                    }}>
-                    {Array(12).fill(null).map((_,i)=>{
-                      const m=String(i+1).padStart(2,"0");
-                      return <option key={m} value={m}>{i+1}月</option>;
-                    })}
-                  </select>
-                  <select style={{...S.inp,flex:1}}
-                    value={form.date ? form.date.slice(8,10) : String(new Date().getDate()).padStart(2,"0")}
-                    onChange={e=>{
-                      const y=(form.date||"").slice(0,4)||String(new Date().getFullYear());
-                      const mo=(form.date||"").slice(5,7)||String(new Date().getMonth()+1).padStart(2,"0");
-                      const dy=e.target.value;
-                      setForm(f=>({...f,date:`${y}-${mo}-${dy}`}));
-                    }}>
-                    {(()=>{
-                      const y=+(form.date||"").slice(0,4)||new Date().getFullYear();
-                      const mo=+(form.date||"").slice(5,7)||new Date().getMonth()+1;
-                      const maxD=new Date(y,mo,0).getDate();
-                      const DOW_NAMES=["日","一","二","三","四","五","六"];
-                      return Array(maxD).fill(null).map((_,i)=>{
-                        const d=String(i+1).padStart(2,"0");
-                        const dow=new Date(+y,+mo-1,+d).getDay();
-                        return <option key={d} value={d}>{i+1}日（週{DOW_NAMES[dow]}）</option>;
-                      });
-                    })()}
-                  </select>
-                </div>
-              </FL>
+              <div style={{gridColumn:"1/-1"}}>
+                {(()=>{
+                  const DOW_LABELS = ["一","二","三","四","五","六","日"];
+                  const selY = form.date ? +form.date.slice(0,4) : new Date().getFullYear();
+                  const selM = form.date ? +form.date.slice(5,7) : new Date().getMonth()+1;
+                  const selD = form.date ? +form.date.slice(8,10) : 0;
+                  const daysInM  = new Date(selY, selM, 0).getDate();
+                  const firstDow = (new Date(selY, selM-1, 1).getDay() + 6) % 7;
+                  const DOW_ALL  = ["日","一","二","三","四","五","六"];
+                  const selDow   = selD ? DOW_ALL[new Date(selY, selM-1, selD).getDay()] : "";
+                  const setYM = (y,m)=>{
+                    if(m<1){m=12;y--;} if(m>12){m=1;y++;}
+                    const maxD=new Date(y,m,0).getDate();
+                    const d=Math.min(selD||1,maxD);
+                    setForm(f=>({...f,date:`${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`}));
+                  };
+                  return(<>
+                    <label style={{display:"block",fontSize:10,color:"#4b5563",marginBottom:8,
+                      fontWeight:700,letterSpacing:.8,textTransform:"uppercase"}}>
+                      {selD ? `${selY}/${String(selM).padStart(2,"0")}/${String(selD).padStart(2,"0")} 週${selDow}` : "選擇日期"}
+                    </label>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
+                      <button className="ib" onClick={()=>setYM(selY,selM-1)}
+                        style={{background:"#0d1525",border:"1px solid #1e2d45",color:"#9ca3af",
+                          width:28,height:28,borderRadius:6,cursor:"pointer",fontSize:15,lineHeight:1}}>‹</button>
+                      <span style={{flex:1,textAlign:"center",color:"#f9fafb",fontWeight:600,fontSize:14}}>
+                        {selY} 年 {selM} 月
+                      </span>
+                      <button className="ib" onClick={()=>setYM(selY,selM+1)}
+                        style={{background:"#0d1525",border:"1px solid #1e2d45",color:"#9ca3af",
+                          width:28,height:28,borderRadius:6,cursor:"pointer",fontSize:15,lineHeight:1}}>›</button>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:1,marginBottom:2}}>
+                      {DOW_LABELS.map((d,i)=>(
+                        <div key={d} style={{textAlign:"center",fontSize:10,fontWeight:600,padding:"3px 0",
+                          color:i===5?"#60a5fa":i===6?"#f87171":"#374151"}}>{d}</div>
+                      ))}
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:1}}>
+                      {Array(firstDow).fill(null).map((_,i)=><div key={`e${i}`}/>)}
+                      {Array(daysInM).fill(null).map((_,i)=>{
+                        const d   = i+1;
+                        const dow = new Date(selY, selM-1, d).getDay();
+                        const isSel   = selD===d;
+                        const t = new Date();
+                        const isToday2= d===t.getDate()&&selM===t.getMonth()+1&&selY===t.getFullYear();
+                        return(
+                          <button key={d} onClick={()=>setForm(f=>({...f,
+                            date:`${selY}-${String(selM).padStart(2,"0")}-${String(d).padStart(2,"0")}`
+                          }))} style={{
+                            border:"none",outline:isToday2?"2px solid #f59e0b":isSel?"2px solid #22c55e":"none",
+                            borderRadius:6,padding:"7px 2px",cursor:"pointer",textAlign:"center",
+                            fontSize:13,fontWeight:isSel?700:400,
+                            background:isSel?"#0a1e10":"transparent",
+                            color:isSel?"#86efac":dow===0?"#f87171":dow===6?"#60a5fa":"#c9d1da",
+                          }}>{d}</button>
+                        );
+                      })}
+                    </div>
+                  </>);
+                })()}
+              </div>
               <FL label="時間">
                 <input type="time" style={S.inp} value={form.time}
                   onChange={e=>setForm(f=>({...f,time:e.target.value}))}/>
