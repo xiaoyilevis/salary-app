@@ -116,10 +116,8 @@ function expandEvents(raw){
 }
 
 export default function App(){
-  const [tab,setTab]         = useState(()=>{try{return localStorage.getItem("sy_tab")||"courses";}catch{return "courses";}});
-  const changeTab = t => { setTab(t); try{localStorage.setItem("sy_tab", t);}catch{} };
-  useEffect(()=>{ try{localStorage.setItem("sy_year", fYear);}catch{} },[fYear]);
-  useEffect(()=>{ try{localStorage.setItem("sy_month", fMonth);}catch{} },[fMonth]);
+  const [tab,setTab]         = useState(()=>{try{return localStorage.getItem("sy_tab")||"courses";}catch(e){return "courses";}});
+  const changeTab = t => { setTab(t); try{localStorage.setItem("sy_tab", t);}catch(e){} };
   const [courses,setCourses] = useState(()=>{
     const all = expandEvents(RAW);
     // 去重：依 date+time+studentName，保留第一筆
@@ -149,8 +147,10 @@ export default function App(){
 
 
   const now = new Date();
-  const [fYear,setFYear]       = useState(()=>{try{return +(localStorage.getItem('sy_year')||now.getFullYear());}catch{return now.getFullYear();}});
-  const [fMonth,setFMonth]     = useState(()=>{try{return +(localStorage.getItem('sy_month')||now.getMonth()+1);}catch{return now.getMonth()+1;}});
+  const [fYear,setFYear]       = useState(()=>{try{return +(localStorage.getItem('sy_year')||now.getFullYear());}catch(e){return now.getFullYear();}});
+  const [fMonth,setFMonth]     = useState(()=>{try{return +(localStorage.getItem('sy_month')||now.getMonth()+1);}catch(e){return now.getMonth()+1;}});
+  useEffect(()=>{ try{localStorage.setItem("sy_year", fYear);}catch(e){} },[fYear]);
+  useEffect(()=>{ try{localStorage.setItem("sy_month", fMonth);}catch(e){} },[fMonth]);
   const [fType,setFType]       = useState("全部");
   const [fCal,setFCal]         = useState("全部");
   const [fStudent,setFStudent] = useState("全部");
