@@ -968,10 +968,10 @@ export default function App(){
                       <span style={{color:"#34d399",fontWeight:700}}>{fmt(weekEarn)}</span>
                     </div>
                     <div style={{overflowX:"auto"}}>
-                      <div style={{minWidth:700,userSelect:"none"}}>
+                      <div style={{minWidth:700,userSelect:"none",overflowY:"auto",maxHeight:"75vh"}}>
                         {/* 星期標頭 */}
                         <div style={{display:"grid",gridTemplateColumns:"44px repeat(7,1fr)",
-                          gap:1,marginBottom:1}}>
+                          gap:1,marginBottom:1,position:"sticky",top:0,zIndex:3,background:"#060b14"}}>
                           <div/>
                           {weekDates.map((d,i)=>{
                             const key = makeKey(d);
@@ -1000,11 +1000,12 @@ export default function App(){
                         <div style={{position:"relative",display:"grid",
                           gridTemplateColumns:"44px repeat(7,1fr)",gap:1}}>
                           {/* 時間軸 */}
-                          <div style={{display:"flex",flexDirection:"column"}}>
+                          <div style={{display:"flex",flexDirection:"column",position:"sticky",left:0,
+                            background:"#050a10",zIndex:2}}>
                             {HOURS.map(h=>(
                               <div key={h} style={{height:60,display:"flex",alignItems:"flex-start",
-                                paddingTop:2,justifyContent:"flex-end",paddingRight:6}}>
-                                <span style={{fontSize:10,color:"#374151"}}>{h}:00</span>
+                                paddingTop:4,justifyContent:"flex-end",paddingRight:8,minWidth:44}}>
+                                <span style={{fontSize:10,color:"#4b5563"}}>{h}:00</span>
                               </div>
                             ))}
                           </div>
@@ -1354,7 +1355,7 @@ export default function App(){
             </div>
 
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
-              <FL label={form.date ? `日期（${["日","一","二","三","四","五","六"][new Date(form.date+"T00:00:00").getDay()]}）` : "日期"}>
+              <FL label={form.date ? `日期（${["日","一","二","三","四","五","六"][(d=>new Date(+d[0],+d[1]-1,+d[2]).getDay())(form.date.split("-"))]}）` : "日期"}>
                 <div style={{display:"flex",gap:6}}>
                   <select style={{...S.inp,flex:"0 0 80px"}}
                     value={form.date ? form.date.slice(0,4) : new Date().getFullYear()}
@@ -1389,7 +1390,6 @@ export default function App(){
                       const y=(form.date||"").slice(0,4)||String(new Date().getFullYear());
                       const mo=(form.date||"").slice(5,7)||String(new Date().getMonth()+1).padStart(2,"0");
                       const dy=e.target.value;
-                      const dow=new Date(`${y}-${mo}-${dy}T00:00:00`).getDay();
                       setForm(f=>({...f,date:`${y}-${mo}-${dy}`}));
                     }}>
                     {(()=>{
@@ -1399,7 +1399,7 @@ export default function App(){
                       const DOW_NAMES=["日","一","二","三","四","五","六"];
                       return Array(maxD).fill(null).map((_,i)=>{
                         const d=String(i+1).padStart(2,"0");
-                        const dow=new Date(`${y}-${String(mo).padStart(2,"0")}-${d}T00:00:00`).getDay();
+                        const dow=new Date(+y,+mo-1,+d).getDay();
                         return <option key={d} value={d}>{i+1}日（週{DOW_NAMES[dow]}）</option>;
                       });
                     })()}
