@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 const CALENDARS = [
   { id: "cal1", name: "陳逸升大", color: "#60a5fa" },
@@ -116,7 +116,10 @@ function expandEvents(raw){
 }
 
 export default function App(){
-  const [tab,setTab]         = useState("courses");
+  const [tab,setTab]         = useState(()=>localStorage.getItem("sy_tab")||"courses");
+  const changeTab = t => { setTab(t); localStorage.setItem("sy_tab", t); };
+  useEffect(()=>{ localStorage.setItem("sy_year", fYear); },[fYear]);
+  useEffect(()=>{ localStorage.setItem("sy_month", fMonth); },[fMonth]);
   const [courses,setCourses] = useState(()=>{
     const all = expandEvents(RAW);
     // 去重：依 date+time+studentName，保留第一筆
@@ -146,8 +149,8 @@ export default function App(){
 
 
   const now = new Date();
-  const [fYear,setFYear]       = useState(now.getFullYear());
-  const [fMonth,setFMonth]     = useState(now.getMonth()+1);
+  const [fYear,setFYear]       = useState(()=>+(localStorage.getItem('sy_year')||now.getFullYear()));
+  const [fMonth,setFMonth]     = useState(()=>+(localStorage.getItem('sy_month')||now.getMonth()+1));
   const [fType,setFType]       = useState("全部");
   const [fCal,setFCal]         = useState("全部");
   const [fStudent,setFStudent] = useState("全部");
@@ -302,7 +305,7 @@ export default function App(){
         <span style={{fontFamily:"'DM Serif Display',serif",fontSize:18,color:"#f9fafb",marginRight:20,whiteSpace:"nowrap"}}>揚才薪資</span>
         <nav style={{display:"flex",gap:2}}>
           {[["courses","📋 課程"],["salary","📊 報表"],["calendar","📅 課表"],["roster","📋 班級明細"],["rates","💰 費率表"]].map(([k,l])=>(
-            <button key={k} className="nb" onClick={()=>setTab(k)}
+            <button key={k} className="nb" onClick={()=>changeTab(k)}
               style={{...S.nBtn,...(tab===k?{color:"#f9fafb",background:"#0d1525"}:{})}}>
               {l}
             </button>
