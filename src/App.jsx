@@ -829,7 +829,7 @@ export default function App(){
           });
 
           // 月/週 課程分組
-          const makeKey = d => d.toISOString().slice(0,10);
+          const makeKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
           const dayMap = {};
           courses.forEach(c=>{
             if(c.trial) return;
