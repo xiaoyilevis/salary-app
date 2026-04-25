@@ -813,10 +813,11 @@ export default function App(){
           const monthStr    = `${calYear}-${String(calMonth).padStart(2,'0')}`;
 
           // 本週起始（週日）
-          // 台灣時區（UTC+8）今天日期
-          const nowTW = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
-          const today = nowTW;
-          // 週一為起始（getDay: 0=日,1=一,...,6=六 → 週一offset）
+          // 直接用本地日期（瀏覽器在台灣本來就是 UTC+8）
+          const todayRaw = new Date();
+          // 用年月日重建，避免時間部分干擾
+          const today = new Date(todayRaw.getFullYear(), todayRaw.getMonth(), todayRaw.getDate());
+          // 週一為起始（getDay: 0=日,1=一,...,6=六）
           const dowToMon = (today.getDay() + 6) % 7; // 0=週一,6=週日
           const weekBase = new Date(today);
           weekBase.setDate(today.getDate() - dowToMon + weekOffset*7);
@@ -1038,9 +1039,9 @@ export default function App(){
                                 borderRadius:8,
                                 background:isTd?"#0a1e10":"#080e1a",
                                 border:isTd?"1px solid #22c55e44":"1px solid #0d1525"}}>
-                                <div style={{fontSize:11,color:i===6?"#f87171":i===5?"#60a5fa":"#374151",
-                                  fontWeight:700,letterSpacing:.5}}>
-                                  {DOW_LABELS[i]}
+                                <div style={{fontSize:11,fontWeight:700,letterSpacing:.5,
+                                  color:d.getDay()===0?"#f87171":d.getDay()===6?"#60a5fa":"#374151"}}>
+                                  {["日","一","二","三","四","五","六"][d.getDay()]}
                                 </div>
                                 <div style={{fontSize:16,fontWeight:700,
                                   color:isTd?"#f59e0b":"#e2e8f0"}}>
