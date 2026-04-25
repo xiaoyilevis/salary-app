@@ -118,9 +118,49 @@ function expandEvents(raw){
 export default function App(){
   const [tab,setTab]         = useState(()=>{try{return localStorage.getItem("sy_tab")||"courses";}catch(e){return "courses";}});
   const changeTab = t => { setTab(t); try{localStorage.setItem("sy_tab", t);}catch(e){} };
+
+  async function syncFromAPI() {
+    setSyncStatus("loading");
+    try {
+      const res  = await fetch("/api/calendar");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error||"API 錯誤");
+      const apiEvents = json.events.map(e=>({
+        ...e,
+        month: new Date(e.date).getMonth()+1,
+        year:  new Date(e.date).getFullYear(),
+        type:  "補習班家教",
+        trial: e.studentName?.includes("試教")||false,
+        billingMode:"按小時",
+        grade:"高中", level:"T4",
+        headcount: e.headcount ? String(e.headcount) : "",
+        customRate:"", note:"", fromICS:true,
+        calId: e.calId,
+      }));
+      // 合併：保留手動新增的課程，API 課程去重覆蓋
+      setCourses(prev=>{
+        const manual = prev.filter(c=>!c.fromICS);
+        const seen   = new Set(manual.map(c=>`${c.date}|${c.time}|${c.studentName}`));
+        const merged = [...manual, ...apiEvents.filter(e=>{
+          const k=`${e.date}|${e.time}|${e.studentName}`;
+          if(seen.has(k)) return false;
+          seen.add(k); return true;
+        })];
+        return merged;
+      });
+      setLastSync(new Date().toLocaleTimeString('zh-TW'));
+      setSyncStatus("ok");
+      setTimeout(()=>setSyncStatus("idle"), 3000);
+    } catch(err) {
+      console.error("sync error:", err);
+      setSyncStatus("err");
+      setTimeout(()=>setSyncStatus("idle"), 4000);
+    }
+  }
+
+  useEffect(()=>{ syncFromAPI(); },[]);
   const [courses,setCourses] = useState(()=>{
     const all = expandEvents(RAW);
-    // 去重：依 date+time+studentName，保留第一筆
     const seen = new Set();
     return all.filter(c=>{
       const k = `${c.date}|${c.time}|${c.studentName}`;
@@ -129,6 +169,8 @@ export default function App(){
       return true;
     });
   });
+  const [syncStatus,setSyncStatus] = useState("idle"); // idle | loading | ok | err
+  const [lastSync,setLastSync]     = useState(null);
   const [toasts,setToasts]   = useState([]);
   const [modal,setModal]     = useState(null);
   const [rosterEdit,setRosterEdit]   = useState(null);
@@ -311,7 +353,17 @@ export default function App(){
             </button>
           ))}
         </nav>
-        <button style={{...S.addBtn,marginLeft:"auto"}} onClick={openNew}>＋ 新增</button>
+        <div style={{display:"flex",gap:8,alignItems:"center",marginLeft:"auto"}}>
+          {lastSync&&<span style={{fontSize:11,color:"#374151"}}>最後同步 {lastSync}</span>}
+          <button className="ib" onClick={syncFromAPI}
+            style={{background:"#080e1a",border:"1px solid #0d1525",color:
+              syncStatus==="ok"?"#34d399":syncStatus==="err"?"#f87171":"#9ca3af",
+              padding:"7px 14px",borderRadius:8,cursor:"pointer",fontSize:13,
+              opacity:syncStatus==="loading"?0.6:1}}>
+            {syncStatus==="loading"?"同步中…":syncStatus==="ok"?"✓ 已更新":syncStatus==="err"?"✕ 失敗":"↻ 同步"}
+          </button>
+          <button style={S.addBtn} onClick={openNew}>＋ 新增</button>
+        </div>
       </header>
 
       <main style={S.main}>
