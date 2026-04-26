@@ -1,6 +1,4 @@
 // Vercel API Route: /api/calendar
-// 從 Google Calendar 抓取 ICS 並解析回傳課程資料
-
 const NAME_MERGE = {
   "王彥喆 家教":"王彥喆","彥喆":"王彥喆",
   "君綺家教":"君綺","王君綺":"君綺","君綺 家教":"君綺",
@@ -8,7 +6,6 @@ const NAME_MERGE = {
   "藝芹家教":"藝芹","洪藝芹":"藝芹",
   "林高 高二數A":"林高高二數A",
 };
-
 const HEADCOUNT_MAP = {
   "林高高一一小時":22,"林高高二數A":18,"林高高二數B":17,
   "林高明倫分班":4,"長庚高一":4,"長庚高一先修":4,
@@ -17,20 +14,17 @@ const HEADCOUNT_MAP = {
   "文華班小五":7,"文華班小四":8,"文華班小三團班":8,
   "文華班 國三":10,"文華班 國二":8,
 };
-
 const DOW_MAP = { MO:0,TU:1,WE:2,TH:3,FR:4,SA:5,SU:6 };
 
 function parseDT(s) {
   if (!s) return null;
   const y=+s.slice(0,4), mo=+s.slice(4,6)-1, d=+s.slice(6,8);
-  const h=+(s[9]||0)*10+(+s[10]||0);
-  const mi=+(s[11]||0)*10+(+s[12]||0);
-  const dt = new Date(y, mo, d, h, mi);
+  const h=+(s.slice(9,11)||0);
+  const mi=+(s.slice(11,13)||0);
   if (s.endsWith('Z')) {
-    // UTC+8
     return new Date(Date.UTC(y, mo, d, h+8, mi));
   }
-  return dt;
+  return new Date(y, mo, d, h, mi);
 }
 
 function parseICS(text, calId) {
@@ -45,22 +39,18 @@ function parseICS(text, calId) {
       const m = block.match(new RegExp(`^${key}(?:;[^:\\r\\n]+)?:(.+)$`, 'm'));
       return m ? m[1].trim() : '';
     };
-
     const uid     = get('UID') || `${calId}_${events.length}`;
     const rawName = get('SUMMARY').replace(/\\,/g,',').replace(/\\n/g,' ').trim();
     const dtstart = get('DTSTART');
     const dtend   = get('DTEND');
     const rrule   = get('RRULE');
-
     if (!dtstart || /^\d{8}$/.test(dtstart)) continue;
-
     const sd = parseDT(dtstart);
     const ed = dtend ? parseDT(dtend) : null;
     if (!sd) continue;
-
     const dur = ed ? Math.max(0.5, Math.round((ed-sd)/1800000)*0.5) : 1;
     const name = NAME_MERGE[rawName] || rawName;
-    const hc = HEADCOUNT_MAP[name] || (rawName.match(/(\d+)\s*人/)||[])[1] || 0;
+    const hc = HEADCOUNT_MAP[name] || +(rawName.match(/(\d+)\s*人/)||[0,0])[1] || 0;
     const safeUid = uid.replace(/[^a-zA-Z0-9_]/g,'_').slice(0,36);
 
     const makeEvent = (dt) => ({
@@ -70,7 +60,7 @@ function parseICS(text, calId) {
       time: `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`,
       duration: dur,
       studentName: name,
-      headcount: +hc,
+      headcount: hc,
     });
 
     if (rrule && rrule.includes('FREQ=WEEKLY')) {
@@ -80,13 +70,10 @@ function parseICS(text, calId) {
       const days   = bydayM ? bydayM[1].split(',').map(d=>DOW_MAP[d]).filter(d=>d!==undefined) : [sd.getDay()];
       const endDt  = untilM ? new Date(Math.min(parseDT(untilM[1]).getTime(), END_2027.getTime())) : END_2027;
       const maxCnt = countM ? +countM[1] : 500;
-
-      // 從包含 sd 的那週週一開始
       const weekStart = new Date(sd);
       weekStart.setDate(sd.getDate() - ((sd.getDay()+6)%7));
       let cnt = 0;
       let cur = new Date(weekStart);
-
       while (cur <= endDt && cnt < maxCnt) {
         for (const dow of days.sort()) {
           const dt = new Date(cur);
@@ -108,26 +95,53 @@ function parseICS(text, calId) {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 's-maxage=300'); // 快取 5 分鐘
+  res.setHeader('Cache-Control', 's-maxage=300');
 
+  const debug = req.query?.debug === '1';
   const CAL1_URL = process.env.CALENDAR_ICS_1;
   const CAL2_URL = process.env.CALENDAR_ICS_2;
 
+  const diag = { cal1:{}, cal2:{} };
+
   if (!CAL1_URL || !CAL2_URL) {
-    return res.status(500).json({ error: '未設定 CALENDAR_ICS_1 / CALENDAR_ICS_2 環境變數' });
+    return res.status(500).json({ error: '未設定 CALENDAR_ICS_1 / CALENDAR_ICS_2', cal1Set:!!CAL1_URL, cal2Set:!!CAL2_URL });
+  }
+
+  async function fetchOne(url, calId, slot) {
+    try {
+      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SalaryApp/1.0)' } });
+      diag[slot].status = r.status;
+      diag[slot].ok = r.ok;
+      diag[slot].url_prefix = url.slice(0, 60);
+      if (!r.ok) {
+        diag[slot].error = `HTTP ${r.status}`;
+        return [];
+      }
+      const text = await r.text();
+      diag[slot].text_length = text.length;
+      diag[slot].is_ics = text.startsWith('BEGIN:VCALENDAR');
+      if (!text.startsWith('BEGIN:VCALENDAR')) {
+        diag[slot].error = 'Not ICS format';
+        diag[slot].text_preview = text.slice(0, 200);
+        return [];
+      }
+      const events = parseICS(text, calId);
+      diag[slot].events_count = events.length;
+      diag[slot].events_2024plus = events.filter(e => e.date >= '2024-01-01').length;
+      return events;
+    } catch (err) {
+      diag[slot].error = err.message;
+      return [];
+    }
   }
 
   try {
-    const [r1, r2] = await Promise.all([
-      fetch(CAL1_URL).then(r => r.text()),
-      fetch(CAL2_URL).then(r => r.text()),
+    const [cal1, cal2] = await Promise.all([
+      fetchOne(CAL1_URL, 'cal1', 'cal1'),
+      fetchOne(CAL2_URL, 'cal2', 'cal2'),
     ]);
 
-    const cal1 = parseICS(r1, 'cal1');
-    const cal2 = parseICS(r2, 'cal2');
-    const all  = [...cal1, ...cal2];
-
-    // 去重
+    const all = [...cal1, ...cal2];
     const seen = new Set();
     const deduped = all.filter(e => {
       const k = `${e.date}|${e.time}|${e.studentName}`;
@@ -135,12 +149,13 @@ export default async function handler(req, res) {
       seen.add(k);
       return true;
     });
-
-    // 只回傳 2024 年之後
     const recent = deduped.filter(e => e.date >= '2024-01-01');
 
-    res.status(200).json({ events: recent, updated: new Date().toISOString() });
+    if (debug) {
+      return res.status(200).json({ diag, total: recent.length });
+    }
+    res.status(200).json({ events: recent, updated: new Date().toISOString(), diag });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, diag });
   }
 }
