@@ -344,7 +344,7 @@ export default function App(){
             fill="none" stroke="#f59e0b" strokeWidth="1.4"/>
           <circle cx="10" cy="10" r="2.8" fill="#f59e0b"/>
         </svg>
-        <span style={{fontFamily:"'DM Serif Display',serif",fontSize:18,color:"#f9fafb",marginRight:20,whiteSpace:"nowrap"}}>揚才薪資</span>
+        <span style={{fontFamily:"'DM Serif Display',serif",fontSize:18,color:"#f9fafb",marginRight:20,whiteSpace:"nowrap"}}>薪資系統</span>
         <nav style={{display:"flex",gap:2}}>
           {[["courses","📋 課程"],["salary","📊 報表"],["calendar","📅 課表"],["roster","📋 班級明細"],["rates","💰 費率表"]].map(([k,l])=>(
             <button key={k} className="nb" onClick={()=>changeTab(k)}
