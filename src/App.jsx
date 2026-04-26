@@ -122,7 +122,7 @@ export default function App(){
   async function syncFromAPI() {
     setSyncStatus("loading");
     try {
-      const res  = await fetch("https://script.google.com/macros/s/AKfycbw2TbDcDvTgQXKXY7eeJyZ1ImGoZmx4elcX73TyM4Yru56XJ185XU7fB2sdJmarLU_XUw/exec");
+      const res  = await fetch("/api/calendar");
       const json = await res.json();
       if (!res.ok) throw new Error(json.error||"API 錯誤");
       const apiEvents = json.events.map(e=>({
