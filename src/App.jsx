@@ -127,8 +127,8 @@ export default function App(){
       if (!res.ok) throw new Error(json.error||"API 錯誤");
       const apiEvents = json.events.map(e=>({
         ...e,
-        month: new Date(e.date).getMonth()+1,
-        year:  new Date(e.date).getFullYear(),
+        month: +e.date.slice(5,7),
+        year:  +e.date.slice(0,4),
         type:  "補習班家教",
         trial: e.studentName?.includes("試教")||false,
         billingMode:"按小時",
